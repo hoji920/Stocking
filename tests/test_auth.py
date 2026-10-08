@@ -24,6 +24,19 @@ def test_remote_needs_password(monkeypatch):
     assert c.get("/healthz").status_code == 200          # 배포 상태 확인은 비밀번호 없이 (정보 없음)
 
 
+def test_proxied_loopback_needs_password(monkeypatch):
+    s = replace(main.get_settings(), app_password="s3cret", toss_client_id="", toss_client_secret="")
+    monkeypatch.setattr(main, "get_settings", lambda: s)
+    async def from_loopback(scope, receive, send):                    # 프록시가 같은 서버에서 넘겨주는 상황
+        scope["client"] = ("127.0.0.1", 50000)
+        await main.app(scope, receive, send)
+    c = TestClient(from_loopback)
+    assert c.get("/api/status").status_code == 200                   # 서버에서 직접 열면 그대로
+    fwd = {"X-Forwarded-For": "203.0.113.5"}
+    assert c.get("/api/status", headers=fwd).status_code == 401
+    assert c.get("/api/status", headers={**fwd, **_basic("s3cret")}).status_code == 200
+
+
 def test_remote_blocked_when_no_password_set(monkeypatch):
     c = _client(monkeypatch, "")
     assert c.get("/api/status", headers=_basic("anything")).status_code == 403

@@ -219,7 +219,9 @@ async def require_password(request, call_next):
     """집 와이파이로 열었을 때: 이 PC(127.0.0.1)가 아닌 기기는 비밀번호(HTTP Basic, 아이디는 아무거나)가 있어야 한다.
     비밀번호를 안 정했으면 다른 기기 접속을 아예 막는다 (계좌·키가 걸린 앱이라 '실수로 열림'을 막기 위해)."""
     client = request.client.host if request.client else ""
-    if client in LOOPBACK or request.url.path == "/healthz":      # 서버 상태 확인(Render)은 비밀번호 없이
+    # 리버스 프록시(Caddy 등) 뒤에서는 모든 요청이 127.0.0.1 로 들어온다 → 프록시가 붙인 헤더가 있으면 외부 요청으로 본다
+    proxied = "x-forwarded-for" in request.headers or "forwarded" in request.headers
+    if (client in LOOPBACK and not proxied) or request.url.path == "/healthz":      # 서버 상태 확인(Render)은 비밀번호 없이
         return await call_next(request)
     pw = get_settings().app_password
     if not pw:
