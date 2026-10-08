@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stocking</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Stocking</h1>
+    <form id="search">
+      <div class="search-box">
+        <input id="symbol" placeholder="애플, NVDA, 삼성전자 … (쉼표로 여러 개 = 관심종목 추가)" autocomplete="off">
+        <ul id="suggest" hidden></ul>
+      </div>
+      <button type="submit">보기</button>
+    </form>
+  </header>
+
+  <div id="banner" hidden></div>
+
+  <!-- 가운데: 종목 화면 / 오른쪽: 목록 패널 / 맨 오른쪽: 아이콘 탭 (토스 WTS 처럼) -->
+  <div id="app">
+    <main id="stock">
+      <section class="card">
+        <div id="title-row">
+          <h2 id="name">-</h2>
+          <span id="price"></span>
+          <span id="live-dot" class="live" title="토스 실시간 체결 연결 상태 (초록=연결됨)">● 실시간</span>
+          <button id="why-btn" class="ghost" title="오늘 왜 이만큼 움직였는지 최근 뉴스에서 찾아봐요">왜 움직였지?</button>
+          <button id="watch-toggle" class="ghost">☆ 관심종목</button>
+        </div>
+        <div id="intervals" class="intervals" role="tablist" aria-label="봉 단위"></div>
+        <p id="daily-only" class="muted hint" hidden>뉴스·매매 신호·내가 비스듬히 그은 선은 '일' 봉에서 보여요. 분봉은 한국 시간 기준이에요.</p>
+        <!-- 왼쪽: 켜진 항목 칩 (개수에 따라 줄바꿈) / 오른쪽: 도구 버튼 (항상 오른쪽 위 고정) -->
+        <div id="toggles">
+          <div id="ind-chips"></div>
+          <div class="tools">
+            <button id="draw-trend" class="ghost small" title="차트에서 시작점과 끝점을 차례로 클릭하세요. 오늘까지 자동으로 연장되고, 닿으면 알림이 와요.">✏️ 추세선 긋기</button>
+            <button id="draw-hline" class="ghost small" title="차트에서 원하는 가격을 한 번 클릭하세요. 닿으면 알림이 와요.">― 수평선 긋기</button>
+            <button id="draw-channel" class="ghost small" title="① 기준 추세선 시작점 ② 끝점 ③ 반대편 고점(저점)을 차례로 클릭. 평행 채널이 그려지고 두 선 모두 알림 대상이에요.">⫽ 채널 긋기</button>
+            <div class="dropdown">
+              <button id="add-ind" class="small" title="차트에 표시할 선·지표를 골라 넣고 빼요">+ 추가</button>
+              <div id="ind-menu" hidden></div>
+            </div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <div id="chart"></div>
+          <div id="legend" title="선을 누르면 근거(닿은 지점)를 보여줘요"></div>
+          <div id="tip" hidden></div>
+        </div>
+        <div id="panes"></div>
+        <p class="note">이 화면은 공부용 정보이며 매수·매도 추천이 아니에요.</p>
+      </section>
+
+      <!-- 종목 정보 탭 -->
+      <section class="card">
+        <div class="stock-tabs" role="tablist">
+          <button class="stab" data-st="overview">한눈에 보기</button>
+          <button class="stab" data-st="lines">자동으로 그은 선</button>
+          <button class="stab" data-st="patterns">차트 패턴</button>
+          <button class="stab" data-st="signals">매매 신호</button>
+          <button class="stab" data-st="news">뉴스</button>
+          <button class="stab" data-st="drawings">내가 그은 선</button>
+        </div>
+        <div data-stpanel="overview"><div id="why-box"></div><div id="insights"></div></div>
+        <div data-stpanel="lines" hidden>
+          <p class="muted hint">선을 누르면 그 선이 실제로 닿은 지점이 차트에 점으로 보여요. 선은 사람들이 보는 가격대를 보여줄 뿐, 반등·돌파를 예측하지 않아요.</p>
+          <div id="auto-lines"></div>
+        </div>
+        <div data-stpanel="patterns" hidden>
+          <p class="muted hint">일봉에서 이중 바닥·역헤드앤숄더·상승 삼각수렴·상승 깃발형·컵앤핸들 모양을 찾아요. 누르면 차트에 모양이 그려져요.</p>
+          <ul id="pattern-list"></ul>
+        </div>
+        <div data-stpanel="signals" hidden>
+          <div class="h3-row">
+            <span id="sig-through" class="muted"></span>
+            <button id="sig-settings-btn" class="ghost small" title="신호 종류별로 차트 표시 / 알림 켜고 끄기">신호 설정</button>
+          </div>
+          <div id="sig-settings" hidden></div>
+          <ul id="signals"></ul>
+        </div>
+        <div data-stpanel="news" hidden>
+          <div id="news-summary"></div>
+          <ul id="news"></ul>
+        </div>
+        <div data-stpanel="drawings" hidden><ul id="drawings"></ul></div>
+      </section>
+    </main>
+
+    <aside id="side">
+      <div class="side-head">
+        <h3 id="side-title">내 투자</h3>
+        <span class="side-actions">
+          <button id="hold-watch" class="ghost small" title="보유종목 전부를 관심종목(알림 대상)에 추가">전부 관심종목에</button>
+          <button id="list-refresh" class="ghost small" title="새로고침">↻</button>
+        </span>
+      </div>
+
+      <div data-panel="holdings">
+        <div id="acct"></div>
+        <div class="list-opts">
+          <span class="muted">평가금 큰 순</span>
+          <span class="seg">
+            <button data-hv="price">현재가</button><button data-hv="value">평가금</button>
+          </span>
+        </div>
+        <ul id="holdings" class="stock-list"></ul>
+      </div>
+
+      <div data-panel="watch" hidden>
+        <p class="muted hint">이 종목들만 지지/저항·매매 신호 알림이 와요. 차트의 ☆ 또는 검색창에 '엔비디아, MSFT'처럼 쉼표로 붙여넣어 추가.</p>
+        <ul id="watch-list" class="stock-list"></ul>
+      </div>
+
+      <div data-panel="recent" hidden>
+        <ul id="recent-list" class="stock-list"></ul>
+      </div>
+
+      <div data-panel="market" hidden>
+        <p class="muted hint">미국 지수·선물·국채·원자재는 야후 파이낸스 기준이라 몇 분 늦을 수 있어요. 누르면 차트가 열려요.</p>
+        <div id="market-list"></div>
+      </div>
+
+      <div data-panel="alerts" hidden>
+        <p id="alert-status" class="muted hint"></p>
+        <div class="alert-actions">
+          <button id="notify-btn" class="ghost small">브라우저 알림 켜기</button>
+          <button id="check-btn" class="ghost small">지금 확인</button>
+        </div>
+        <ul id="alerts"></ul>
+      </div>
+    </aside>
+
+    <nav id="rail" aria-label="목록">
+      <button id="rail-collapse" class="rail-btn collapse" title="목록 접기/펴기">»</button>
+      <button id="rail-chart" class="rail-btn mobile-only"><span class="ic">📈</span>차트</button>
+      <button class="rail-btn" data-tab="holdings"><span class="ic">💼</span>내 투자</button>
+      <button class="rail-btn" data-tab="watch"><span class="ic">♥</span>관심<span id="watch-count" class="badge-n"></span></button>
+      <button class="rail-btn" data-tab="recent"><span class="ic">🕘</span>최근 본</button>
+      <button class="rail-btn" data-tab="market"><span class="ic">🌐</span>시장</button>
+      <button class="rail-btn" data-tab="alerts"><span class="ic">🔔</span>알림<span id="alert-badge" class="badge" hidden></span></button>
+    </nav>
+  </div>
+
+  <div id="toasts"></div>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

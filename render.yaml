@@ -1,0 +1,44 @@
+# Render 배포 설정 (Blueprint). 나만 쓰는 용도: 다른 사람은 APP_PASSWORD 없이는 못 들어옴.
+# 무료 플랜: 15분 안 보면 잠듦(그동안 알림 X), 재시작 때 data/ 초기화 → 관심종목은 DEFAULT_WATCHLIST 로 시작
+# 유료(starter)로 바꾸면 아래 disk 주석을 풀고 DATA_DIR 을 /var/data 로 → 관심종목·그은 선·알림 기록 유지
+services:
+  - type: web
+    name: stocking
+    runtime: python
+    plan: free
+    region: singapore            # 한국에서 가장 가까운 지역 (토스 API·화면 응답 빠르게)
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeploy: true
+    # disk:
+    #   name: stocking-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
+      - key: DATA_DIR
+        value: /tmp/stocking-data
+      - key: APP_PASSWORD          # 필수: 접속 비밀번호 (아이디는 아무거나)
+        sync: false
+      - key: TOSS_CLIENT_ID
+        sync: false
+      - key: TOSS_CLIENT_SECRET
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: DEFAULT_WATCHLIST     # 예: MSTR,BE,INTC,BITX,AAPL,TSLA
+        sync: false
+      - key: NAVER_CLIENT_ID
+        sync: false
+      - key: NAVER_CLIENT_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false

@@ -1,0 +1,16 @@
+# 비밀값 — 절대 커밋 금지
+.env
+.token_cache.json
+data/
+
+# 시세 캐시 (토스·야후 데이터: 개인용, 재배포 금지)
+research/data/
+# 연구 중간 산출물(큰 CSV)은 다시 돌리면 생김. 결과 요약(md)과 앱이 쓰는 패턴 검증 숫자만 커밋
+research/results/*.csv
+!research/results/patterns.csv
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.claude/
